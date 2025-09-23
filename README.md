@@ -1,2 +1,3 @@
-# project
-First Posted Project From Scratch. Incorporate full-scale cloud deployed ML project with financial application on SQL database.
+# Busyness Buster
+Personal AI-powered productivity agent to review your calendar, tasks and goals to make sure you're working on business, not just busyness.
+Coming soon...

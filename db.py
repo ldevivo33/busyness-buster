@@ -42,8 +42,14 @@ class Event(Base):
 engine = create_engine("sqlite:///busyness.db", echo=True)
 Base.metadata.create_all(engine)
 
-Session = sessionmaker(bind=engine)
-session = Session()
+SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 """ 
 test_task = Task(title = "Finish Busyness Buster!", due_date = datetime(2025, 9, 22), priority = 10)
@@ -55,4 +61,4 @@ session.add(test_event)
 session.add(test_goal)
 """
 
-session.commit()
+#session.commit()

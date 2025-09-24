@@ -6,3 +6,7 @@ google-auth-oauthlib
 
 uvicorn
 fastapi
+pydantic
+
+pytz
+python-dateutil

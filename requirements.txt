@@ -10,5 +10,3 @@ pydantic
 
 pytz
 python-dateutil
-
-openai

@@ -6,7 +6,7 @@ from schemas.tasks import TaskCreate, TaskRead, TaskUpdate
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
-@router.post("/", response_model=TaskRead)
+@router.post("/", response_model=TaskRead, status_code=status.HTTP_201_CREATED)
 def create_task(payload: TaskCreate, db: Session = Depends(get_db)):
     task = Task(**payload.model_dump())  # convert schema → Task model
     db.add(task)

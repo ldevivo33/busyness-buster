@@ -173,3 +173,5 @@ cython_debug/
 #Google API Credentials
 credentials.json
 token.json
+
+busyness.db

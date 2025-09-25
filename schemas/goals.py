@@ -12,8 +12,8 @@ class ForecastEnum(str, Enum):
 
 class GoalCreate(BaseModel):
     goal: str
-    priority: Optional[conint(ge=0, le=10)] = 0
-    accomplished: Optional[bool] = False
+    priority: Optional[conint(ge=0, le=10)]
+    accomplished: Optional[bool]
     forecast: Optional[ForecastEnum]
 
 class GoalRead(BaseModel):

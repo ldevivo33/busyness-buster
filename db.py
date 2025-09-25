@@ -1,6 +1,6 @@
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, CheckConstraint, Enum
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, CheckConstraint, Enum, ForeignKey
 from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from datetime import datetime
 
 Base = declarative_base()
@@ -14,6 +14,9 @@ class Task(Base):
     priority = Column(Integer, default = 0)
     completed = Column(Boolean, default = False)
 
+    goal_id = Column(Integer, ForeignKey("goals.id"), nullable = True)
+    goal = relationship("Goal", back_populates = 'tasks')
+
     __table_args__ = (
         CheckConstraint('priority >= 0 AND priority <= 10', name='priority_range'),
     )
@@ -25,6 +28,8 @@ class Goal(Base):
     priority = Column(Integer, default = 0)
     accomplished = Column(Boolean, default = False)
     forecast = Column(Enum('Short', 'Medium', 'Long', name='forecast_enum'))
+    
+    tasks = relationship("Task", back_populates = "goal")
 
     __table_args__ = (
         CheckConstraint('priority >= 0 AND priority <= 10', name='priority_range'),
@@ -50,6 +55,8 @@ def get_db():
         yield db
     finally:
         db.close()
+
+__all__ = ["Task", "Goal", "Event"]
 
 """ 
 test_task = Task(title = "Finish Busyness Buster!", due_date = datetime(2025, 9, 22), priority = 10)

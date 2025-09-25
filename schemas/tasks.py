@@ -7,6 +7,7 @@ class TaskCreate(BaseModel):
     due_date: Optional[datetime] = None
     priority: Optional[conint(ge=0, le=10)] = 0
     completed: Optional[bool] = False
+    goal_id: Optional[int] = None
 
 #class TaskUpdate(BaseModel):
 
@@ -16,6 +17,14 @@ class TaskRead(BaseModel):
     due_date: Optional[datetime]
     priority: int 
     completed: bool
+    goal_id: int
 
     class Config:
         from_attributes = True
+    
+class TaskUpdate(BaseModel):
+    title: Optional[str] = None
+    due_date: Optional[datetime] = None
+    priority: Optional[int] = None
+    completed: Optional[bool] = None
+    goal_id: Optional[int] = None

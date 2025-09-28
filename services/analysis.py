@@ -37,12 +37,13 @@ def gpt_analyze(db):
     and point out anything that looks like busywork rather than working towards my tasks , and thus my important goals ! The idea is to identify 'busyness' (bad) versus 'business' (good). 
 
     Finish with a sentence that gives a final verdict on if today's plan is good, and if not what changes to make to nudge me towards acutally accomplishing my goals. Identify any flaws on the daily work side, how tasks are organized and related to goals, or even hihg level goals.
+
     """
 
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt}],
-        max_tokens=300,
+        max_tokens=1500,
     )
 
     return response.choices[0].message.content

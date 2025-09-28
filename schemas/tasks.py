@@ -17,7 +17,7 @@ class TaskRead(BaseModel):
     due_date: Optional[datetime]
     priority: int 
     completed: bool
-    goal_id: int
+    goal_id: Optional[int]
 
     class Config:
         from_attributes = True

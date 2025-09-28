@@ -10,3 +10,7 @@ pydantic
 
 pytz
 python-dateutil
+
+# GUI dependencies
+requests
+openai

@@ -1,0 +1,14 @@
+{
+  "tasks": [
+    {
+      "id": 1,
+      "title": "enjoy ryder cup and rest",
+      "description": "",
+      "priority": "Medium",
+      "due_date": "",
+      "created": "2025-09-28T00:03:43.157683",
+      "status": "active"
+    }
+  ],
+  "goals": []
+}

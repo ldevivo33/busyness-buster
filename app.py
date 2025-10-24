@@ -362,6 +362,23 @@ class BusynessBusterApp:
                 if response.status_code == 200:
                     events = response.json()
                     self.root.after(0, lambda: messagebox.showinfo("Sync Complete", f"Synced {len(events)} events from Google Calendar!"))
+                elif response.status_code == 401:
+                    # Authentication error - likely stale token
+                    try:
+                        error_detail = response.json().get("detail", "Authentication failed")
+                        self.root.after(0, lambda: messagebox.showerror("Authentication Error", 
+                            f"Google Calendar authentication expired.\n\n{error_detail}\n\n"
+                            "Please delete 'token.json' from your project folder and try again."))
+                    except:
+                        self.root.after(0, lambda: messagebox.showerror("Authentication Error", 
+                            "Google Calendar authentication expired. Please delete 'token.json' and try again."))
+                elif response.status_code == 500:
+                    # Parse the error detail from the response
+                    try:
+                        error_detail = response.json().get("detail", "Unknown server error")
+                        self.root.after(0, lambda: messagebox.showerror("Sync Error", f"Server error: {error_detail}"))
+                    except:
+                        self.root.after(0, lambda: messagebox.showerror("Sync Error", f"Server error: {response.text}"))
                 else:
                     self.root.after(0, lambda: messagebox.showerror("Sync Error", f"Failed to sync events: {response.text}"))
             except requests.exceptions.ConnectionError:

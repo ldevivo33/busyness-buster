@@ -6,7 +6,7 @@ Built a RESTful API integration using FASTAPI to for three resources: Events, Ta
 
 Built in services to sync events from Google Calendar, and to call chat-gpt api for AI analysis.
 
-Run with uvicorn main:app, python app,py to open GUI. 
+Run auto by clicking the 'run_bb.bat' file, or manually with uvicorn main:app, python app,py to open GUI. 
 
 COMING SOON:
 1. Previous day, next week syncing (Currently only next day)

@@ -321,6 +321,7 @@ class BusynessBusterApp:
         self.goal_forecast.set("Medium")
         
     def refresh_active(self):
+        """Refresh the active tasks and goals lists with proper ordering"""
         if not self.db_session:
             return
             
@@ -329,25 +330,42 @@ class BusynessBusterApp:
         self.active_goals_listbox.delete(0, tk.END)
         
         try:
-            # Query active tasks from database
-            active_tasks = self.db_session.query(Task).filter(Task.completed == False).all()
+            # Load and display tasks (ordered by priority desc, then goal association)
+            active_tasks = self.db_session.query(Task).filter(Task.completed == False).order_by(
+                Task.priority.desc(), Task.goal_id.asc().nullsfirst()
+            ).all()
+            
             for task in active_tasks:
-                display_text = f"{task.title} (Priority: {task.priority})"
+                # Priority indicators
+                priority_indicator = "🔥" if task.priority >= 8 else "⚡" if task.priority >= 6 else "📋"
+                
+                display_text = f"{priority_indicator} {task.title} (Priority: {task.priority})"
                 if task.due_date:
                     display_text += f" - Due: {task.due_date.strftime('%Y-%m-%d')}"
                 if task.goal_id:
-                    # Get goal title for display
                     goal = self.db_session.query(Goal).filter(Goal.id == task.goal_id).first()
                     if goal:
                         display_text += f" - Goal: {goal.goal}"
+                
                 self.active_tasks_listbox.insert(tk.END, display_text)
             
-            # Query active goals from database
+            # Load and display goals (ordered by priority desc, then forecast length)
+            forecast_order = {'Long': 3, 'Medium': 2, 'Short': 1}
             active_goals = self.db_session.query(Goal).filter(Goal.accomplished == False).all()
-            for goal in active_goals:
-                display_text = f"{goal.goal} (Priority: {goal.priority})"
+            
+            sorted_goals = sorted(active_goals, key=lambda g: (
+                -g.priority,  # Descending priority
+                -(forecast_order.get(g.forecast, 0))  # Descending forecast length
+            ))
+            
+            for goal in sorted_goals:
+                # Priority and forecast indicators
+                priority_indicator = "🎯" if goal.priority >= 8 else "📍" if goal.priority >= 6 else "📌"
+                forecast_indicator = "🌙" if goal.forecast == "Long" else "⛰️" if goal.forecast == "Medium" else "🏃" if goal.forecast == "Short" else ""
+                
+                display_text = f"{priority_indicator} {goal.goal} (Priority: {goal.priority})"
                 if goal.forecast:
-                    display_text += f" - {goal.forecast} term"
+                    display_text += f" - {forecast_indicator} {goal.forecast} term"
                 self.active_goals_listbox.insert(tk.END, display_text)
                 
         except Exception as e:
@@ -357,8 +375,8 @@ class BusynessBusterApp:
         """Sync events from Google Calendar using the FastAPI backend"""
         def sync_thread():
             try:
-                # Make API call to sync events
                 response = requests.post(f"{self.api_base_url}/events/sync")
+                
                 if response.status_code == 200:
                     events = response.json()
                     self.root.after(0, lambda: messagebox.showinfo("Sync Complete", f"Synced {len(events)} events from Google Calendar!"))
@@ -373,7 +391,6 @@ class BusynessBusterApp:
                         self.root.after(0, lambda: messagebox.showerror("Authentication Error", 
                             "Google Calendar authentication expired. Please delete 'token.json' and try again."))
                 elif response.status_code == 500:
-                    # Parse the error detail from the response
                     try:
                         error_detail = response.json().get("detail", "Unknown server error")
                         self.root.after(0, lambda: messagebox.showerror("Sync Error", f"Server error: {error_detail}"))
@@ -381,8 +398,10 @@ class BusynessBusterApp:
                         self.root.after(0, lambda: messagebox.showerror("Sync Error", f"Server error: {response.text}"))
                 else:
                     self.root.after(0, lambda: messagebox.showerror("Sync Error", f"Failed to sync events: {response.text}"))
+                    
             except requests.exceptions.ConnectionError:
-                self.root.after(0, lambda: messagebox.showerror("Connection Error", "Could not connect to the FastAPI server. Make sure it's running on localhost:8000"))
+                self.root.after(0, lambda: messagebox.showerror("Connection Error", 
+                    "Could not connect to the FastAPI server. Make sure it's running on localhost:8000"))
             except Exception as e:
                 self.root.after(0, lambda: messagebox.showerror("Sync Error", f"Unexpected error: {str(e)}"))
         
@@ -397,7 +416,6 @@ class BusynessBusterApp:
         """Get AI analysis from the FastAPI backend"""
         def analyze_thread():
             try:
-                # Make API call to get AI analysis
                 response = requests.get(f"{self.api_base_url}/analysis/")
                 if response.status_code == 200:
                     result = response.json()
@@ -406,7 +424,8 @@ class BusynessBusterApp:
                 else:
                     self.root.after(0, lambda: messagebox.showerror("Analysis Error", f"Failed to get analysis: {response.text}"))
             except requests.exceptions.ConnectionError:
-                self.root.after(0, lambda: messagebox.showerror("Connection Error", "Could not connect to the FastAPI server. Make sure it's running on localhost:8000"))
+                self.root.after(0, lambda: messagebox.showerror("Connection Error", 
+                    "Could not connect to the FastAPI server. Make sure it's running on localhost:8000"))
             except Exception as e:
                 self.root.after(0, lambda: messagebox.showerror("Analysis Error", f"Unexpected error: {str(e)}"))
         

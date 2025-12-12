@@ -9,6 +9,10 @@ Built in services to sync events from Google Calendar, and to call chat-gpt api 
 Run auto by clicking the 'run_bb.bat' file, or manually with uvicorn main:app, python app,py to open GUI. 
 
 COMING SOON:
+0. Full JWT Auth!
+0.1 Async background task
+0.2 DB schema cleanup + per user migrations
+
 1. Previous day, next week syncing (Currently only next day)
 2. Tests (Unit, smoke, e2e)
 3. Automated endpoint testing

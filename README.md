@@ -9,7 +9,7 @@ JWT authentication with per-user data isolation. All routes protected, data scop
 ** Setup **
 1. Install deps: `pip install -r requirements.txt`
 2. Create user: `python seed_user.py`
-3. Run: `run_bb.bat` (or manually: `uvicorn main:app` + `python app.py`)
+3. Run: Double-click `start.pyw` (cleanest) or `run_bb.bat`
 
 COMING SOON:
 1. Async background tasks

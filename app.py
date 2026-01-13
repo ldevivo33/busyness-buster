@@ -8,30 +8,118 @@ from sqlalchemy.orm import sessionmaker
 from db import Task, Goal, Event, Base
 import json
 
+
 class BusynessBusterApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Busyness Buster")
         self.root.geometry("800x600")
-        
+
+        # API base URL
+        self.api_base_url = "http://localhost:8000"
+
+        # Auth state
+        self.access_token = None
+        self.current_user_id = None
+        self.current_username = None
+
+        # Database session (initialized after login)
+        self.db_session = None
+
+        # Show login screen first
+        self.show_login_screen()
+
+    def get_auth_headers(self):
+        """Return headers with JWT token for API requests."""
+        if self.access_token:
+            return {"Authorization": f"Bearer {self.access_token}"}
+        return {}
+
+    def show_login_screen(self):
+        """Display the login screen."""
+        self.login_frame = ttk.Frame(self.root, padding="20")
+        self.login_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Title
+        title_label = ttk.Label(self.login_frame, text="Busyness Buster", font=("Helvetica", 24, "bold"))
+        title_label.pack(pady=(50, 30))
+
+        # Login form frame
+        form_frame = ttk.Frame(self.login_frame)
+        form_frame.pack()
+
+        # Username
+        ttk.Label(form_frame, text="Username:").grid(row=0, column=0, sticky=tk.E, pady=5, padx=5)
+        self.login_username = ttk.Entry(form_frame, width=30)
+        self.login_username.grid(row=0, column=1, pady=5)
+
+        # Password
+        ttk.Label(form_frame, text="Password:").grid(row=1, column=0, sticky=tk.E, pady=5, padx=5)
+        self.login_password = ttk.Entry(form_frame, width=30, show="*")
+        self.login_password.grid(row=1, column=1, pady=5)
+
+        # Login button
+        login_btn = ttk.Button(form_frame, text="Login", command=self.do_login)
+        login_btn.grid(row=2, column=0, columnspan=2, pady=20)
+
+        # Bind Enter key to login
+        self.login_password.bind("<Return>", lambda e: self.do_login())
+        self.login_username.bind("<Return>", lambda e: self.login_password.focus())
+
+        # Focus username field
+        self.login_username.focus()
+
+    def do_login(self):
+        """Attempt to log in via the API."""
+        username = self.login_username.get().strip()
+        password = self.login_password.get()
+
+        if not username or not password:
+            messagebox.showerror("Error", "Please enter username and password")
+            return
+
+        try:
+            response = requests.post(
+                f"{self.api_base_url}/auth/login",
+                json={"username": username, "password": password},
+                timeout=5
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+                self.access_token = data["access_token"]
+                self.current_user_id = data["user_id"]
+                self.current_username = data["username"]
+
+                # Destroy login screen and initialize main app
+                self.login_frame.destroy()
+                self.initialize_main_app()
+            else:
+                messagebox.showerror("Login Failed", "Invalid username or password")
+
+        except requests.exceptions.ConnectionError:
+            messagebox.showerror("Connection Error",
+                "Could not connect to the server.\nMake sure the backend is running.")
+        except Exception as e:
+            messagebox.showerror("Error", f"Login failed: {str(e)}")
+
+    def initialize_main_app(self):
+        """Initialize the main application after successful login."""
         # Initialize database connection
         self.setup_database()
-        
-        # API base URL (assuming FastAPI server is running)
-        self.api_base_url = "http://localhost:8000"
-        
-        # Check if FastAPI server is running
-        self.check_server_status()
-        
+
         # Create main notebook for tabs
-        self.notebook = ttk.Notebook(root)
+        self.notebook = ttk.Notebook(self.root)
         self.notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-        
+
         # Create tabs
         self.create_tasks_tab()
         self.create_goals_tab()
         self.create_active_tab()
         self.create_sync_tab()
+
+        # Update window title with username
+        self.root.title(f"Busyness Buster - {self.current_username}")
         
     def setup_database(self):
         """Initialize database connection"""
@@ -44,17 +132,6 @@ class BusynessBusterApp:
             messagebox.showerror("Database Error", f"Failed to connect to database: {str(e)}")
             self.db_session = None
             
-    def check_server_status(self):
-        """Check if the FastAPI server is running"""
-        try:
-            response = requests.get(f"{self.api_base_url}/docs", timeout=2)
-            if response.status_code == 200:
-                print("FastAPI server is running")
-            else:
-                messagebox.showwarning("Server Warning", "FastAPI server may not be running properly. Some features may not work.")
-        except requests.exceptions.RequestException:
-            messagebox.showwarning("Server Warning", "FastAPI server is not running. Please start it with 'uvicorn main:app' to use sync and analysis features.")
-        
     def create_tasks_tab(self):
         # Tasks tab
         tasks_frame = ttk.Frame(self.notebook)
@@ -216,12 +293,15 @@ class BusynessBusterApp:
         self.goal_priority_label.config(text=f"{int(float(value))}")
         
     def populate_goals_combobox(self):
-        """Populate the goals combobox with active goals"""
-        if not self.db_session:
+        """Populate the goals combobox with active goals for current user"""
+        if not self.db_session or not self.current_user_id:
             return
-            
+
         try:
-            active_goals = self.db_session.query(Goal).filter(Goal.accomplished == False).all()
+            active_goals = self.db_session.query(Goal).filter(
+                Goal.accomplished == False,
+                Goal.user_id == self.current_user_id
+            ).all()
             goal_options = ["None"] + [f"{goal.goal} (ID: {goal.id})" for goal in active_goals]
             self.task_goal_id['values'] = goal_options
             self.task_goal_id.set("None")
@@ -263,9 +343,10 @@ class BusynessBusterApp:
                 priority=priority,
                 due_date=due_date,
                 completed=False,
-                goal_id=goal_id
+                goal_id=goal_id,
+                user_id=self.current_user_id,
             )
-            
+
             self.db_session.add(task)
             self.db_session.commit()
             
@@ -293,9 +374,10 @@ class BusynessBusterApp:
                 goal=title,  # Using 'goal' field as per database schema
                 priority=priority,
                 accomplished=False,
-                forecast=forecast
+                forecast=forecast,
+                user_id=self.current_user_id,
             )
-            
+
             self.db_session.add(goal)
             self.db_session.commit()
             
@@ -322,23 +404,26 @@ class BusynessBusterApp:
         
     def refresh_active(self):
         """Refresh the active tasks and goals lists with proper ordering"""
-        if not self.db_session:
+        if not self.db_session or not self.current_user_id:
             return
-            
+
         # Clear existing items
         self.active_tasks_listbox.delete(0, tk.END)
         self.active_goals_listbox.delete(0, tk.END)
-        
+
         try:
             # Load and display tasks (ordered by priority desc, then goal association)
-            active_tasks = self.db_session.query(Task).filter(Task.completed == False).order_by(
+            active_tasks = self.db_session.query(Task).filter(
+                Task.completed == False,
+                Task.user_id == self.current_user_id
+            ).order_by(
                 Task.priority.desc(), Task.goal_id.asc().nullsfirst()
             ).all()
-            
+
             for task in active_tasks:
                 # Priority indicators
                 priority_indicator = "🔥" if task.priority >= 8 else "⚡" if task.priority >= 6 else "📋"
-                
+
                 display_text = f"{priority_indicator} {task.title} (Priority: {task.priority})"
                 if task.due_date:
                     display_text += f" - Due: {task.due_date.strftime('%Y-%m-%d')}"
@@ -346,12 +431,15 @@ class BusynessBusterApp:
                     goal = self.db_session.query(Goal).filter(Goal.id == task.goal_id).first()
                     if goal:
                         display_text += f" - Goal: {goal.goal}"
-                
+
                 self.active_tasks_listbox.insert(tk.END, display_text)
-            
+
             # Load and display goals (ordered by priority desc, then forecast length)
             forecast_order = {'Long': 3, 'Medium': 2, 'Short': 1}
-            active_goals = self.db_session.query(Goal).filter(Goal.accomplished == False).all()
+            active_goals = self.db_session.query(Goal).filter(
+                Goal.accomplished == False,
+                Goal.user_id == self.current_user_id
+            ).all()
             
             sorted_goals = sorted(active_goals, key=lambda g: (
                 -g.priority,  # Descending priority
@@ -373,9 +461,11 @@ class BusynessBusterApp:
                 
     def sync_events(self):
         """Sync events from Google Calendar using the FastAPI backend"""
+        headers = self.get_auth_headers()
+
         def sync_thread():
             try:
-                response = requests.post(f"{self.api_base_url}/events/sync")
+                response = requests.post(f"{self.api_base_url}/events/sync", headers=headers)
                 
                 if response.status_code == 200:
                     events = response.json()
@@ -414,9 +504,11 @@ class BusynessBusterApp:
         
     def analyze_data(self):
         """Get AI analysis from the FastAPI backend"""
+        headers = self.get_auth_headers()
+
         def analyze_thread():
             try:
-                response = requests.get(f"{self.api_base_url}/analysis/")
+                response = requests.get(f"{self.api_base_url}/analysis/", headers=headers)
                 if response.status_code == 200:
                     result = response.json()
                     analysis = result.get("analysis", "No analysis available")
@@ -551,7 +643,11 @@ class BusynessBusterApp:
             title_part = goal_text.split(" (Priority:")[0]
             
             # Find the goal in database
-            goal = self.db_session.query(Goal).filter(Goal.goal == title_part, Goal.accomplished == False).first()
+            goal = self.db_session.query(Goal).filter(
+                Goal.goal == title_part,
+                Goal.accomplished == False,
+                Goal.user_id == self.current_user_id
+            ).first()
             return goal.id if goal else None
         except Exception as e:
             print(f"Error extracting goal ID: {e}")
@@ -592,41 +688,51 @@ class BusynessBusterApp:
     def delete_task_by_id(self, task_id):
         """Delete task by ID using API"""
         try:
-            response = requests.delete(f"{self.api_base_url}/tasks/{task_id}")
+            response = requests.delete(
+                f"{self.api_base_url}/tasks/{task_id}",
+                headers=self.get_auth_headers()
+            )
             if response.status_code == 204:
                 messagebox.showinfo("Success", "Task deleted successfully!")
                 self.refresh_active()
-                self.populate_goals_combobox()  # Refresh goals list
+                self.populate_goals_combobox()
             else:
                 messagebox.showerror("Error", f"Failed to delete task: {response.text}")
         except requests.exceptions.ConnectionError:
             messagebox.showerror("Connection Error", "Could not connect to the FastAPI server")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to delete task: {str(e)}")
-    
+
     def delete_goal_by_id(self, goal_id):
         """Delete goal by ID using API"""
         try:
-            response = requests.delete(f"{self.api_base_url}/goals/{goal_id}")
+            response = requests.delete(
+                f"{self.api_base_url}/goals/{goal_id}",
+                headers=self.get_auth_headers()
+            )
             if response.status_code == 204:
                 messagebox.showinfo("Success", "Goal deleted successfully!")
                 self.refresh_active()
-                self.populate_goals_combobox()  # Refresh goals list
+                self.populate_goals_combobox()
             else:
                 messagebox.showerror("Error", f"Failed to delete goal: {response.text}")
         except requests.exceptions.ConnectionError:
             messagebox.showerror("Connection Error", "Could not connect to the FastAPI server")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to delete goal: {str(e)}")
-    
+
     def update_task_via_api(self, task_id, task_data):
         """Update task via API"""
         try:
-            response = requests.patch(f"{self.api_base_url}/tasks/{task_id}", json=task_data)
+            response = requests.patch(
+                f"{self.api_base_url}/tasks/{task_id}",
+                json=task_data,
+                headers=self.get_auth_headers()
+            )
             if response.status_code == 200:
                 messagebox.showinfo("Success", "Task updated successfully!")
                 self.refresh_active()
-                self.populate_goals_combobox()  # Refresh goals list
+                self.populate_goals_combobox()
                 return True
             else:
                 messagebox.showerror("Error", f"Failed to update task: {response.text}")
@@ -637,15 +743,19 @@ class BusynessBusterApp:
         except Exception as e:
             messagebox.showerror("Error", f"Failed to update task: {str(e)}")
             return False
-    
+
     def update_goal_via_api(self, goal_id, goal_data):
         """Update goal via API"""
         try:
-            response = requests.patch(f"{self.api_base_url}/goals/{goal_id}", json=goal_data)
+            response = requests.patch(
+                f"{self.api_base_url}/goals/{goal_id}",
+                json=goal_data,
+                headers=self.get_auth_headers()
+            )
             if response.status_code == 200:
                 messagebox.showinfo("Success", "Goal updated successfully!")
                 self.refresh_active()
-                self.populate_goals_combobox()  # Refresh goals list
+                self.populate_goals_combobox()
                 return True
             else:
                 messagebox.showerror("Error", f"Failed to update goal: {response.text}")
@@ -714,11 +824,14 @@ class TaskEditDialog:
         goal_combo = ttk.Combobox(main_frame, textvariable=self.goal_var, state="readonly", width=37)
         goal_combo.grid(row=4, column=1, sticky=tk.W, padx=(5, 0), pady=2)
         
-        # Populate goals
+        # Populate goals for current user
         goal_options = ["None"]
-        if self.app.db_session:
+        if self.app.db_session and self.app.current_user_id:
             try:
-                active_goals = self.app.db_session.query(Goal).filter(Goal.accomplished == False).all()
+                active_goals = self.app.db_session.query(Goal).filter(
+                    Goal.accomplished == False,
+                    Goal.user_id == self.app.current_user_id
+                ).all()
                 goal_options += [f"{goal.goal} (ID: {goal.id})" for goal in active_goals]
             except Exception as e:
                 print(f"Error loading goals: {e}")

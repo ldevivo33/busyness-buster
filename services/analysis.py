@@ -1,23 +1,33 @@
-from openai import OpenAI
-from db import Task, Goal, Event
-import pytz
 from datetime import datetime, timedelta
+
+import pytz
+from openai import OpenAI
 
 from db import Task, Goal, Event
 from schemas import TaskRead, GoalRead, EventRead
 
 client = OpenAI()
 
-def gpt_analyze(db):
 
-    goals = db.query(Goal).filter(Goal.accomplished == False).all()
+def gpt_analyze(db, user_id: int):
+    """Analyze user's goals, tasks, and events using GPT."""
+    goals = db.query(Goal).filter(
+        Goal.accomplished == False,
+        Goal.user_id == user_id
+    ).all()
 
-    tasks = db.query(Task).order_by(Task.priority.desc()).limit(10).all()
+    tasks = db.query(Task).filter(
+        Task.user_id == user_id
+    ).order_by(Task.priority.desc()).limit(10).all()
 
     est = pytz.timezone("US/Eastern")
     today_start = datetime.now(est).replace(hour=0, minute=0, second=0, microsecond=0)
     today_end = today_start + timedelta(days=1)
-    events = db.query(Event).filter(Event.start_time >= today_start, Event.start_time < today_end)
+    events = db.query(Event).filter(
+        Event.start_time >= today_start,
+        Event.start_time < today_end,
+        Event.user_id == user_id
+    )
 
     tasks_out = [TaskRead.model_validate(t).model_dump() for t in tasks]
     goals_out = [GoalRead.model_validate(g).model_dump() for g in goals]

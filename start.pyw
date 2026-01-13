@@ -1,15 +1,13 @@
 """
 Busyness Buster Launcher
 Double-click to start - no command windows shown.
-Uses .pyw extension to hide Python console on Windows.
 """
 
 import subprocess
 import sys
-import time
 import os
+import urllib.request
 
-# Get the directory where this script lives
 script_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(script_dir)
 
@@ -21,13 +19,17 @@ backend = subprocess.Popen(
     creationflags=subprocess.CREATE_NO_WINDOW
 )
 
-# Give backend time to start
-time.sleep(2)
+# Poll until backend is ready (faster than fixed sleep)
+for _ in range(20):  # Max ~2 seconds
+    try:
+        urllib.request.urlopen("http://localhost:8000/docs", timeout=0.1)
+        break
+    except:
+        pass
 
-# Run frontend (this blocks until GUI closes)
+# Run frontend (blocks until GUI closes)
 try:
     subprocess.run([sys.executable, "app.py"])
 finally:
-    # Kill backend when frontend closes
     backend.terminate()
     backend.wait()

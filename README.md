@@ -2,19 +2,18 @@
 Personal AI-powered productivity agent to review your calendar, tasks and goals to make sure you're working on business, not just busyness.
 
 ** Back-End **
-Built a RESTful API integration using FASTAPI to for three resources: Events, Tasks, Goals. Identify the endpoints and build proceessing ipeline to ensure smooth scraping of events to store in the database. 
+Built a RESTful API integration using FASTAPI for three resources: Events, Tasks, Goals. Built in services to sync events from Google Calendar, and to call GPT API for AI analysis.
 
-Built in services to sync events from Google Calendar, and to call chat-gpt api for AI analysis.
+JWT authentication with per-user data isolation. All routes protected, data scoped to logged-in user.
 
-Run auto by clicking the 'run_bb.bat' file, or manually with uvicorn main:app, python app,py to open GUI. 
+** Setup **
+1. Install deps: `pip install -r requirements.txt`
+2. Create user: `python seed_user.py`
+3. Run: `run_bb.bat` (or manually: `uvicorn main:app` + `python app.py`)
 
 COMING SOON:
-0. Full JWT Auth!
-0.1 Async background task
-0.2 DB schema cleanup + per user migrations
-
-1. Previous day, next week syncing (Currently only next day)
-2. Tests (Unit, smoke, e2e)
-3. Automated endpoint testing
-4. Database migration.
-5. containerize and deploy.
+1. Async background tasks
+2. Previous day, next week syncing (Currently only next day)
+3. Tests (Unit, smoke, e2e)
+4. Database migrations (Alembic)
+5. Containerize and deploy
